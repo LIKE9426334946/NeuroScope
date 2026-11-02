@@ -32,3 +32,11 @@ export function frameLayer(camera: PerspectiveCamera, positions: Position[], wid
   camera.updateMatrixWorld()
   return distance
 }
+
+export function focusNode(camera: PerspectiveCamera, target: Vector3, p: Position) {
+  const heading = camera.position.clone().sub(target).normalize()
+  target.fromArray(p)
+  camera.position.copy(target).addScaledVector(heading, 3.7)
+  camera.lookAt(target)
+  camera.updateMatrixWorld()
+}
