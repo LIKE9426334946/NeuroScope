@@ -8,19 +8,27 @@ import { createExplorer } from '../src/stores/explorer.ts'
 test('all default adjacency queries and node colours agree with explicit edge records', () => {
   const edges = generateConnections(defaultLayers)
   assert.deepEqual(generateConnections(defaultLayers), edges)
-  assert.equal(new Set(edges.map(e => JSON.stringify(e))).size, edges.length)
+  assert.equal(new Set(edges.map((e) => JSON.stringify(e))).size, edges.length)
   const graph = indexConnections(edges)
   for (const layer of defaultLayers) {
     for (let id = 0; id < layer.count; id++) {
       const node = { layer: layer.id, index: id }
-      const sources = edges.filter(e => e.target_layer === layer.id && e.target_neuron_index === id).map(e => e.source_neuron_index)
-      const targets = edges.filter(e => e.source_layer === layer.id && e.source_neuron_index === id).map(e => e.target_neuron_index)
-      for (const [direction, expected, adjacent] of [['upstream', sources, layer.id - 1], ['downstream', targets, layer.id + 1]] as const) {
+      const sources = edges
+        .filter((e) => e.target_layer === layer.id && e.target_neuron_index === id)
+        .map((e) => e.source_neuron_index)
+      const targets = edges
+        .filter((e) => e.source_layer === layer.id && e.source_neuron_index === id)
+        .map((e) => e.target_neuron_index)
+      for (const [direction, expected, adjacent] of [
+        ['upstream', sources, layer.id - 1],
+        ['downstream', targets, layer.id + 1]
+      ] as const) {
         const actual = neighbours(graph, node, direction)
         assert.deepEqual(actual, expected)
-        const count = defaultLayers.find(l => l.id === adjacent)?.count ?? 0
+        const count = defaultLayers.find((l) => l.id === adjacent)?.count ?? 0
         const related = new Set(actual)
-        for (let i = 0; i < count; i++) assert.equal(nodeTone(i, null, related), expected.includes(i) ? 'related' : 'normal')
+        for (let i = 0; i < count; i++)
+          assert.equal(nodeTone(i, null, related), expected.includes(i) ? 'related' : 'normal')
       }
       assert.equal(nodeTone(id, id, new Set()), 'selected')
     }
@@ -90,7 +98,7 @@ test('zero neighbours, singleton layers and invalid selections remain consistent
 })
 
 test('three full 30³ tensors keep connections sparse and all endpoints in range', () => {
-  const layers = [1, 2, 3].map(id => createLayer(id, [30, 30, 30]))
+  const layers = [1, 2, 3].map((id) => createLayer(id, [30, 30, 30]))
   const graph = indexConnections(generateConnections(layers))
   assert.ok(graph.connections.length <= 2 * 27_000 * 3)
   for (const edge of graph.connections) {

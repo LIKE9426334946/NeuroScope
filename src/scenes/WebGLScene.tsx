@@ -25,7 +25,7 @@ function CameraRig({ positions, command }: Pick<SceneProps, 'positions' | 'comma
 
 function Spheres({ positions, selected, related, labels, onPick, onFocus }: SceneProps) {
   const ref = useRef<InstancedMesh>(null)
-  const invalidate = useThree(state => state.invalidate)
+  const invalidate = useThree((state) => state.invalidate)
   useLayoutEffect(() => {
     const mesh = ref.current!
     const transform = new Matrix4()
@@ -37,7 +37,8 @@ function Spheres({ positions, selected, related, labels, onPick, onFocus }: Scen
   useLayoutEffect(() => {
     const mesh = ref.current!
     const color = new Color()
-    for (let i = 0; i < positions.length; i++) mesh.setColorAt(i, color.set(palette[nodeTone(i, selected, related)]))
+    for (let i = 0; i < positions.length; i++)
+      mesh.setColorAt(i, color.set(palette[nodeTone(i, selected, related)]))
     mesh.instanceColor!.needsUpdate = true
     invalidate()
   }, [positions, selected, related, invalidate])
@@ -46,23 +47,50 @@ function Spheres({ positions, selected, related, labels, onPick, onFocus }: Scen
     if (event.button === 0 && event.delta <= 5 && event.instanceId != null) action(event.instanceId)
   }
   const dense = positions.length > 1000
-  const labelIds = labels && positions.length <= 80 ? positions.map((_, i) => i) : selected == null ? [] : [selected]
-  return <>
-    <instancedMesh key={positions.length} ref={ref} args={[undefined, undefined, positions.length]}
-      onClick={e => activate(e, onPick)} onDoubleClick={e => activate(e, onFocus)}>
-      <sphereGeometry args={[RADIUS, dense ? 10 : 28, dense ? 7 : 20]} />
-      <meshStandardMaterial color="white" roughness={0.31} metalness={0.15} />
-    </instancedMesh>
-    {labelIds.map(i => <Html key={i} position={positions[i]} center pointerEvents="none" zIndexRange={[3, 1]}>
-      <span className={'sphere-label ' + (i === selected ? 'anchor' : '')}>#{i}</span>
-    </Html>)}
-  </>
+  const labelIds =
+    labels && positions.length <= 80 ? positions.map((_, i) => i) : selected == null ? [] : [selected]
+  return (
+    <>
+      <instancedMesh
+        key={positions.length}
+        ref={ref}
+        args={[undefined, undefined, positions.length]}
+        onClick={(e) => activate(e, onPick)}
+        onDoubleClick={(e) => activate(e, onFocus)}
+      >
+        <sphereGeometry args={[RADIUS, dense ? 10 : 28, dense ? 7 : 20]} />
+        <meshStandardMaterial color="white" roughness={0.31} metalness={0.15} />
+      </instancedMesh>
+      {labelIds.map((i) => (
+        <Html
+          key={i}
+          position={positions[i]}
+          center
+          wrapperClass="index-overlay"
+          style={{ pointerEvents: 'none' }}
+          zIndexRange={[3, 1]}
+        >
+          <span className={'sphere-label ' + (i === selected ? 'anchor' : '')}>#{i}</span>
+        </Html>
+      ))}
+    </>
+  )
 }
 
 export default function WebGLScene(props: SceneProps) {
-  return <Canvas dpr={[1, 1.6]} frameloop="demand" camera={{ fov: FOV }} gl={{ alpha: true, antialias: true }}>
-    <ambientLight intensity={0.95} /><hemisphereLight args={['#ffffff', '#475c77', 1]} />
-    <directionalLight position={[-4, 7, 5]} intensity={2.2} /><directionalLight position={[5, 2, -3]} intensity={1.2} color="#c9e6ff" />
-    <Spheres {...props} /><CameraRig positions={props.positions} command={props.command} />
-  </Canvas>
+  return (
+    <Canvas
+      dpr={[1, 1.6]}
+      frameloop="demand"
+      camera={{ fov: FOV }}
+      gl={{ alpha: true, antialias: true }}
+    >
+      <ambientLight intensity={0.95} />
+      <hemisphereLight args={['#ffffff', '#475c77', 1]} />
+      <directionalLight position={[-4, 7, 5]} intensity={2.2} />
+      <directionalLight position={[5, 2, -3]} intensity={1.2} color="#c9e6ff" />
+      <Spheres {...props} />
+      <CameraRig positions={props.positions} command={props.command} />
+    </Canvas>
+  )
 }

@@ -12,7 +12,7 @@ function sphereSprite(tone: NodeTone) {
   const stops = {
     normal: ['#ffffff', palette.normal, '#c6d2e2', '#8a9bb1', '#536678'],
     selected: ['#d0ffed', '#8cffc8', palette.selected, '#24ad76', '#17654c'],
-    related: ['#e0f2ff', '#a4d1ff', palette.related, '#396cc7', '#254c84'],
+    related: ['#e0f2ff', '#a4d1ff', palette.related, '#396cc7', '#254c84']
   }[tone]
   const fill = ctx.createRadialGradient(36, 27, 1, 49, 51, 49)
   const offsets = [0, 0.24, 0.56, 0.82, 1]
@@ -24,7 +24,13 @@ function sphereSprite(tone: NodeTone) {
   return sprite
 }
 
-interface Projected { index: number; x: number; y: number; z: number; r: number }
+interface Projected {
+  index: number
+  x: number
+  y: number
+  z: number
+  r: number
+}
 
 /** Software projection for browsers with WebGL2 disabled. Repaint only on change. */
 export function ProjectionScene(props: SceneProps) {
@@ -32,14 +38,20 @@ export function ProjectionScene(props: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const live = useRef(props)
   const renderer = useRef<{ redraw: () => void; move: (index: number | null) => void } | null>(null)
-  useLayoutEffect(() => { live.current = props })
+  useLayoutEffect(() => {
+    live.current = props
+  })
   useLayoutEffect(() => {
     const canvas = canvasRef.current!
     const ctx = canvas.getContext('2d')!
     const camera = new PerspectiveCamera(FOV, 1, 0.05, 500)
     const controls = new OrbitControls(camera, canvas)
     controls.enableDamping = false
-    const sprites = { normal: sphereSprite('normal'), selected: sphereSprite('selected'), related: sphereSprite('related') }
+    const sprites = {
+      normal: sphereSprite('normal'),
+      selected: sphereSprite('selected'),
+      related: sphereSprite('related')
+    }
     const work = new Vector3()
     const points: Projected[] = positions.map((_, index) => ({ index, x: 0, y: 0, z: 0, r: 0 }))
     let width = 1
@@ -49,13 +61,13 @@ export function ProjectionScene(props: SceneProps) {
       frame = 0
       camera.updateMatrixWorld()
       ctx.clearRect(0, 0, width, height)
-      const focal = height / (2 * Math.tan(FOV * Math.PI / 360))
+      const focal = height / (2 * Math.tan((FOV * Math.PI) / 360))
       for (const p of points) {
         work.fromArray(positions[p.index]).applyMatrix4(camera.matrixWorldInverse)
         p.z = -work.z
-        p.r = RADIUS * focal / p.z
-        p.x = width / 2 + work.x * focal / p.z
-        p.y = height / 2 - work.y * focal / p.z
+        p.r = (RADIUS * focal) / p.z
+        p.x = width / 2 + (work.x * focal) / p.z
+        p.y = height / 2 - (work.y * focal) / p.z
       }
       points.sort((a, b) => b.z - a.z)
       const { selected, related, labels } = live.current
@@ -63,7 +75,14 @@ export function ProjectionScene(props: SceneProps) {
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       for (const p of points) {
-        if (p.z < camera.near || p.x + p.r < 0 || p.y + p.r < 0 || p.x - p.r > width || p.y - p.r > height) continue
+        if (
+          p.z < camera.near ||
+          p.x + p.r < 0 ||
+          p.y + p.r < 0 ||
+          p.x - p.r > width ||
+          p.y - p.r > height
+        )
+          continue
         const tone = nodeTone(p.index, selected, related)
         ctx.drawImage(sprites[tone], p.x - p.r, p.y - p.r, p.r * 2, p.r * 2)
         if (showIndex(p.index, selected, labels, positions.length)) {
@@ -72,7 +91,9 @@ export function ProjectionScene(props: SceneProps) {
         }
       }
     }
-    function redraw() { if (!frame) frame = requestAnimationFrame(draw) }
+    function redraw() {
+      if (!frame) frame = requestAnimationFrame(draw)
+    }
     function move(index: number | null) {
       if (index === null) {
         const distance = frameLayer(camera, positions, width, height)
@@ -108,7 +129,10 @@ export function ProjectionScene(props: SceneProps) {
     let down: [number, number] | null = null
     let dragged = false
     function start(event: PointerEvent) {
-      if (!event.isPrimary) { dragged = true; return }
+      if (!event.isPrimary) {
+        dragged = true
+        return
+      }
       down = [event.clientX, event.clientY]
       dragged = false
     }
@@ -142,7 +166,13 @@ export function ProjectionScene(props: SceneProps) {
       cancelAnimationFrame(frame)
     }
   }, [positions])
-  useLayoutEffect(() => { renderer.current?.redraw() }, [selected, related, labels])
-  useLayoutEffect(() => { if (command) renderer.current?.move(command.index) }, [command])
-  return <canvas ref={canvasRef} className="projection-canvas" aria-label="可旋转、可选择神经元的三维视图" />
+  useLayoutEffect(() => {
+    renderer.current?.redraw()
+  }, [selected, related, labels])
+  useLayoutEffect(() => {
+    if (command) renderer.current?.move(command.index)
+  }, [command])
+  return (
+    <canvas ref={canvasRef} className="projection-canvas" aria-label="可旋转、可选择神经元的三维视图" />
+  )
 }

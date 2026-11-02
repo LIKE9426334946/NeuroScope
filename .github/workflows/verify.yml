@@ -1,0 +1,38 @@
+name: Verify NeuroScope
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm test
+      - name: Start frontend, FastAPI and Nginx
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose up --build --wait --wait-timeout 120
+          curl -fsS http://127.0.0.1:3010/ | grep -q NeuroScope
+          curl -fsS http://127.0.0.1:3010/api/health | grep -q '"status":"ok"'
+      - name: Exercise WebGL in Chromium
+        run: |
+          python3 -m venv "$RUNNER_TEMP/neuroscope-browser"
+          source "$RUNNER_TEMP/neuroscope-browser/bin/activate"
+          pip install playwright==1.55.0 Pillow
+          python -m playwright install --with-deps chromium
+          python tests/browser_smoke.py
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down

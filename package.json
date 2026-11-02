@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "dependencies": {
     "@react-three/drei": "^10.7.5",
     "@react-three/fiber": "^9.4.0",

@@ -9,16 +9,20 @@ import { TensorScene } from './scenes/TensorScene'
 import { layerName } from './network/layers'
 import { formatShape, positionsFor } from './tensor/layout'
 import { neighbours } from './connections/graph'
-import { adjacentLayer, explorer } from './stores/explorer'
+import { adjacentLayer, type createExplorer } from './stores/explorer'
 import type { Position } from './types/network'
 
-export function App() {
-  const { layers, graph, visible, selected, direction, view, select, explore, clear, reshape } = useStore(explorer)
+export function App({ store, source }: { store: ReturnType<typeof createExplorer>; source: string }) {
+  const { layers, graph, visible, selected, direction, view, select, explore, clear, reshape } =
+    useStore(store)
   const [editing, setEditing] = useState(false)
   const [labels, setLabels] = useState(false)
-  const [cameraRequest, setCameraRequest] = useState<{ positions: Position[]; index: number | null } | null>(null)
-  const layer = layers.find(item => item.id === visible)!
-  const anchor = layers.find(item => item.id === selected?.layer) ?? null
+  const [cameraRequest, setCameraRequest] = useState<{
+    positions: Position[]
+    index: number | null
+  } | null>(null)
+  const layer = layers.find((item) => item.id === visible)!
+  const anchor = layers.find((item) => item.id === selected?.layer) ?? null
   const positions = useMemo(() => positionsFor(layer.shape), [layer])
   const related = neighbours(graph, selected, direction)
   const highlights = useMemo(() => new Set(related), [related])
@@ -28,27 +32,125 @@ export function App() {
     select(index)
     setCameraRequest({ positions, index })
   }
-  return <Layout layerCount={layers.length} nodeCount={layers.reduce((sum, item) => sum + item.count, 0)}>
-    <LayerPanel layers={layers} visible={visible} onView={view} onEdit={() => setEditing(true)} />
-    <section className="panel viewer" aria-label="张量视图">
-      <div className="viewer-head"><div><Icon name="cube" /><strong>张量视图</strong><span className="view-tag">3D VIEWPORT</span></div>
-        <button className={'label-toggle ' + (labels ? 'on' : '')} onClick={() => setLabels(!labels)} aria-pressed={labels} title="显示节点编号；超过 80 个节点时仅标注所选节点"><Icon name="hash" size={14} />编号</button></div>
-      <div className="stage"><div className="scene-hud"><div className="eyebrow">CURRENT LAYER</div><h2>{layerName(visible)}</h2><p>{formatShape(layer.shape)} <span>· {layer.count.toLocaleString()} 个神经元</span></p></div>
-        {direction !== 'self' && <div className="direction-tag">{directionNames[direction]}<i />{related.length} 个关联</div>}
-        <TensorScene positions={positions} selected={selected?.layer === visible ? selected.index : null} related={highlights} labels={labels} command={cameraRequest?.positions === positions ? cameraRequest : null} onPick={select} onFocus={focus} />
-      </div>
-      <div className="scene-hints"><span><Icon name="orbit" size={14} />拖动旋转</span><span><Icon name="zoom" size={14} />滚轮缩放</span><span><Icon name="pointer" size={14} />单击选择</span><span><Icon name="focus" size={14} />双击聚焦</span></div>
-      <div className="controlbar">
-        <button className={direction === 'upstream' ? 'in-direction' : ''} disabled={!canUp} onClick={() => explore('upstream')} title={!selected ? '先选择神经元' : !canUp ? '所选节点位于第一层' : '查看连接到所选神经元的节点'}><Icon name="left" size={15} />上一层</button>
-        <button className={direction === 'downstream' ? 'in-direction' : ''} disabled={!canDown} onClick={() => explore('downstream')} title={!selected ? '先选择神经元' : !canDown ? '所选节点位于最后一层' : '查看受到所选神经元影响的节点'}>下一层<Icon name="right" size={15} /></button>
-        <span className="control-spacer" />
-        <button onClick={() => setCameraRequest({ positions, index: null })}><Icon name="reset" size={15} />重置视角</button>
-        <button disabled={!selected} onClick={clear}><Icon name="clear" size={15} />重置选择</button>
-      </div>
-    </section>
-    <Inspector layer={layer} anchor={anchor} selected={selected} direction={direction} related={related}
-      upstream={neighbours(graph, selected, 'upstream').length} downstream={neighbours(graph, selected, 'downstream').length}
-      onSelect={select} onReturn={() => { if (selected) view(selected.layer) }} />
-    {editing && <ShapeDialog layer={layer} onApply={reshape} onClose={() => setEditing(false)} />}
-  </Layout>
+  return (
+    <Layout
+      source={source}
+      layerCount={layers.length}
+      nodeCount={layers.reduce((sum, item) => sum + item.count, 0)}
+    >
+      <LayerPanel layers={layers} visible={visible} onView={view} onEdit={() => setEditing(true)} />
+      <section className="panel viewer" aria-label="张量视图">
+        <div className="viewer-head">
+          <div>
+            <Icon name="cube" />
+            <strong>张量视图</strong>
+            <span className="view-tag">3D VIEWPORT</span>
+          </div>
+          <button
+            className={'label-toggle ' + (labels ? 'on' : '')}
+            onClick={() => setLabels(!labels)}
+            aria-pressed={labels}
+            title="显示节点编号；超过 80 个节点时仅标注所选节点"
+          >
+            <Icon name="hash" size={14} />
+            编号
+          </button>
+        </div>
+        <div className="stage">
+          <div className="scene-hud">
+            <div className="eyebrow">CURRENT LAYER</div>
+            <h2>{layerName(visible)}</h2>
+            <p>
+              {formatShape(layer.shape)} <span>· {layer.count.toLocaleString()} 个神经元</span>
+            </p>
+          </div>
+          {direction !== 'self' && (
+            <div className="direction-tag">
+              {directionNames[direction]}
+              <i />
+              {related.length} 个关联
+            </div>
+          )}
+          <TensorScene
+            positions={positions}
+            selected={selected?.layer === visible ? selected.index : null}
+            related={highlights}
+            labels={labels}
+            command={cameraRequest?.positions === positions ? cameraRequest : null}
+            onPick={select}
+            onFocus={focus}
+          />
+        </div>
+        <div className="scene-hints">
+          <span>
+            <Icon name="orbit" size={14} />
+            拖动旋转
+          </span>
+          <span>
+            <Icon name="zoom" size={14} />
+            滚轮缩放
+          </span>
+          <span>
+            <Icon name="pointer" size={14} />
+            单击选择
+          </span>
+          <span>
+            <Icon name="focus" size={14} />
+            双击聚焦
+          </span>
+        </div>
+        <div className="controlbar">
+          <button
+            className={direction === 'upstream' ? 'in-direction' : ''}
+            disabled={!canUp}
+            onClick={() => explore('upstream')}
+            title={
+              !selected ? '先选择神经元' : !canUp ? '所选节点位于第一层' : '查看连接到所选神经元的节点'
+            }
+          >
+            <Icon name="left" size={15} />
+            上一层
+          </button>
+          <button
+            className={direction === 'downstream' ? 'in-direction' : ''}
+            disabled={!canDown}
+            onClick={() => explore('downstream')}
+            title={
+              !selected
+                ? '先选择神经元'
+                : !canDown
+                  ? '所选节点位于最后一层'
+                  : '查看受到所选神经元影响的节点'
+            }
+          >
+            下一层
+            <Icon name="right" size={15} />
+          </button>
+          <span className="control-spacer" />
+          <button onClick={() => setCameraRequest({ positions, index: null })}>
+            <Icon name="reset" size={15} />
+            重置视角
+          </button>
+          <button disabled={!selected} onClick={clear}>
+            <Icon name="clear" size={15} />
+            重置选择
+          </button>
+        </div>
+      </section>
+      <Inspector
+        layer={layer}
+        anchor={anchor}
+        selected={selected}
+        direction={direction}
+        related={related}
+        upstream={neighbours(graph, selected, 'upstream').length}
+        downstream={neighbours(graph, selected, 'downstream').length}
+        onSelect={select}
+        onReturn={() => {
+          if (selected) view(selected.layer)
+        }}
+      />
+      {editing && <ShapeDialog layer={layer} onApply={reshape} onClose={() => setEditing(false)} />}
+    </Layout>
+  )
 }

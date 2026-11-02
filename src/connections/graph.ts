@@ -7,13 +7,16 @@ export function generateConnections(layers: Layer[]): Connection[] {
     const source = layers[i - 1]
     const target = layers[i]
     for (let t = 0; t < target.count; t++) {
-      const center = Math.floor(t * source.count / target.count)
+      const center = Math.floor((t * source.count) / target.count)
       const indexes = new Set([center, (center + (t % 2 ? -1 : 1) + source.count) % source.count])
       if (source.count >= 4 && t % 5 === 0) indexes.add((center + 2) % source.count)
-      for (const s of indexes) edges.push({
-        source_layer: source.id, source_neuron_index: s,
-        target_layer: target.id, target_neuron_index: t,
-      })
+      for (const s of indexes)
+        edges.push({
+          source_layer: source.id,
+          source_neuron_index: s,
+          target_layer: target.id,
+          target_neuron_index: t
+        })
     }
   }
   return edges
@@ -40,5 +43,7 @@ export type Graph = ReturnType<typeof indexConnections>
 
 const EMPTY: readonly number[] = []
 export function neighbours(graph: Graph, node: NodeRef | null, direction: Direction): readonly number[] {
-  return !node || direction === 'self' ? EMPTY : graph[direction].get(key(node.layer, node.index)) ?? EMPTY
+  return !node || direction === 'self'
+    ? EMPTY
+    : (graph[direction].get(key(node.layer, node.index)) ?? EMPTY)
 }

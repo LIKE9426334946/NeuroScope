@@ -12,5 +12,9 @@ const hasWebGL = supportsWebGL()
 
 export function TensorScene(props: SceneProps) {
   if (!hasWebGL) return <ProjectionScene {...props} />
-  return <Suspense fallback={<div className="scene-loading">正在准备三维场景…</div>}><WebGLScene {...props} /></Suspense>
+  return (
+    <Suspense fallback={<div className="scene-loading">正在准备三维场景…</div>}>
+      <WebGLScene {...props} />
+    </Suspense>
+  )
 }

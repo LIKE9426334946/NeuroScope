@@ -19,9 +19,32 @@ const paths = {
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   link: 'm9 14 6-6m-3-3 2-2a5 5 0 0 1 7 7l-3 3m-6 6-2 2a5 5 0 0 1-7-7l3-3',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
-  help: 'M8 9a4 4 0 1 1 6 3c-1 1-2 1-2 3m0 3h.01',
+  help: 'M8 9a4 4 0 1 1 6 3c-1 1-2 1-2 3m0 3h.01'
 } as const
 
-export function Icon({ name, size = 18, style }: { name: keyof typeof paths; size?: number; style?: CSSProperties }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}><path d={paths[name]} /></svg>
+export function Icon({
+  name,
+  size = 18,
+  style
+}: {
+  name: keyof typeof paths
+  size?: number
+  style?: CSSProperties
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.65"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={style}
+    >
+      <path d={paths[name]} />
+    </svg>
+  )
 }
