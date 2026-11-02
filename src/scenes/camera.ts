@@ -1,6 +1,7 @@
 import { Box3, PerspectiveCamera, Vector3 } from 'three'
 
-export type Position = [number, number, number]
+import type { Position } from '../types/network'
+export type { Position }
 export const RADIUS = 0.29
 export const FOV = 34
 
