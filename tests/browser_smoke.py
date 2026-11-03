@@ -26,8 +26,13 @@ def verify(page):
         errors.append(str(error))
 
     page.on("pageerror", report_error)
-    page.goto(os.getenv("NEUROSCOPE_URL", "http://127.0.0.1:3010"))
-    expect(page.locator(".header-status")).to_contain_text("FastAPI 模拟网络")
+    url = os.getenv("NEUROSCOPE_URL", "http://127.0.0.1:16010")
+    assert page.request.get(f"{url}/api/health").json() == {"status": "ok", "service": "NeuroScope"}
+    assert "/api/network" in page.request.get(f"{url}/api/openapi.json").json()["paths"]
+    assert page.request.get(f"{url}/api/missing").status == 404
+    assert page.request.get(f"{url}/assets/missing.js").status == 404
+    page.goto(url)
+    expect(page.locator(".header-status")).to_contain_text("服务器模拟网络")
     expect(page.locator("canvas[data-engine^='three.js']")).to_be_visible()
     page.get_by_role("button", name=re.compile("Layer 02")).click()
     page.get_by_role("button", name="编号", exact=True).click()

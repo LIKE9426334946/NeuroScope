@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "start": "node backend/server.js"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -15,6 +16,7 @@
   "dependencies": {
     "@react-three/drei": "^10.7.5",
     "@react-three/fiber": "^9.4.0",
+    "express": "^5.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.180.0",

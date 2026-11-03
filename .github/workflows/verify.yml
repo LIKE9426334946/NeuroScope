@@ -17,15 +17,31 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci && npm test
-      - name: Start frontend, FastAPI and Nginx
+      - run: npm ci && npm test && npm run build
+      - name: Install and start the shipped systemd unit and Nginx site
         run: |
-          cp .env.example .env
-          docker compose config --quiet
-          docker compose up --build --wait --wait-timeout 120
-          curl -fsS http://127.0.0.1:3010/ | grep -q NeuroScope
-          curl -fsS http://127.0.0.1:3010/api/health | grep -q '"status":"ok"'
-      - name: Exercise WebGL in Chromium
+          sudo bash -se -- "$GITHUB_WORKSPACE" "$(node -p 'process.execPath')" <<'ROOT'
+          if ! command -v nginx >/dev/null; then
+            apt-get update -qq
+            apt-get install -y nginx
+          fi
+          if [ "$(readlink -f /usr/bin/node)" != "$(readlink -f "$2")" ]; then
+            ln -sfn "$2" /usr/bin/node
+          fi
+          ln -s "$1" /opt/NeuroScope
+          cd /opt/NeuroScope
+          install -m 0644 deploy/NeuroScope.service /etc/systemd/system/NeuroScope.service
+          install -m 0644 deploy/host-nginx.conf /etc/nginx/sites-available/NeuroScope
+          ln -sfn /etc/nginx/sites-available/NeuroScope /etc/nginx/sites-enabled/NeuroScope
+          systemctl daemon-reload
+          systemd-analyze verify /etc/systemd/system/NeuroScope.service
+          nginx -t
+          systemctl enable --now NeuroScope.service nginx
+          systemctl reload nginx
+          ROOT
+          curl --retry 8 --retry-connrefused --retry-all-errors --retry-delay 1 -fsS http://127.0.0.1:16010/api/health
+          test "$(ss -Hltn 'sport = :3010' | awk '{print $4}')" = '127.0.0.1:3010'
+      - name: Exercise the public Nginx port in Chromium
         run: |
           python3 -m venv "$RUNNER_TEMP/neuroscope-browser"
           source "$RUNNER_TEMP/neuroscope-browser/bin/activate"
@@ -33,6 +49,4 @@ jobs:
           python -m playwright install --with-deps chromium
           python tests/browser_smoke.py
       - if: failure()
-        run: docker compose logs --no-color
-      - if: always()
-        run: docker compose down
+        run: sudo journalctl -u NeuroScope.service -u nginx --no-pager -n 100

@@ -24,7 +24,7 @@ export async function loadNetwork() {
   try {
     const response = await fetch('/api/network', { signal: AbortSignal.timeout(2500) })
     if (!response.ok) throw new Error('API ' + response.status)
-    return { layers: readLayers(await response.json()), source: 'FastAPI 模拟网络' }
+    return { layers: readLayers(await response.json()), source: '服务器模拟网络' }
   } catch {
     return { layers: defaultLayers, source: '内置模拟网络' }
   }

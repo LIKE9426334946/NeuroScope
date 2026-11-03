@@ -1,0 +1,96 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NeuroScope",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/network": {
+      "get": {
+        "summary": "Network",
+        "operationId": "network_api_network_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Network"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Layer": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Id"
+          },
+          "shape": {
+            "items": {
+              "type": "integer",
+              "maximum": 30.0,
+              "minimum": 1.0
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Shape"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "shape"
+        ],
+        "title": "Layer"
+      },
+      "Network": {
+        "properties": {
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/Layer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Layers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "layers"
+        ],
+        "title": "Network"
+      }
+    }
+  }
+}

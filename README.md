@@ -23,50 +23,77 @@ NeuroScope 是一个中文神经网络拓扑学习工作台。一个 Tensor 元�
 
 ## Ubuntu 部署
 
-默认沿用服务器已有的宿主机 Nginx。浏览器访问 `http://服务器公网IP:16010`，宿主机将请求转发到 `127.0.0.1:3010`。Docker Compose 管理前端静态服务、FastAPI、内部 Nginx 网关。只有网关映射到宿主机。
+以 root 登录 Ubuntu。项目安装在 `/opt/NeuroScope`。Nginx 监听公网 `16010`，将网页、静态文件和 `/api/` 请求统一转发到 `127.0.0.1:3010`。Node.js 提供网页和 API，systemd 负责开机启动与异常重启。
 
 ### 1. 准备环境
 
-以 root 登录 Ubuntu。检查 `git --version`、`docker compose version`、`nginx -v`。若宿主机尚无 Git 或 Nginx，可运行 `apt update && apt install -y git nginx`。Docker 需要 Engine 和 Compose v2 插件。新机器可按官方 Ubuntu APT 仓库流程安装，然后启动服务。[Docker Engine 安装说明](https://docs.docker.com/engine/install/ubuntu/)
-
 ```bash
-systemctl enable --now docker
-mkdir -p /opt
-git clone https://github.com/LIKE9426334946/NeuroScope.git /opt/NeuroScope
-cd /opt/NeuroScope
-cp .env.example .env
-docker compose config --quiet
-docker compose up -d --build --wait
-docker compose ps
-curl -fsS http://127.0.0.1:3010/api/health
+apt update
+apt install -y git nginx curl ca-certificates
+/usr/bin/node --version
+npm --version
 ```
 
-健康接口返回 `{"status":"ok","service":"NeuroScope"}`。
+构建和测试需要 Node.js 22.13 或更高版本，推荐 Node.js 24。如果 `/usr/bin/node` 和 npm 已满足要求，直接进行下一步。新服务器可通过 NodeSource 安装 Node.js 24，其软件包提供 systemd 所用的 `/usr/bin/node`。[NodeSource 安装说明](https://github.com/nodesource/distributions)
 
-### 2. 启用公网入口
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/neuroscope-node24-setup.sh
+bash /tmp/neuroscope-node24-setup.sh
+apt install -y nodejs
+/usr/bin/node --version
+npm --version
+```
+
+### 2. 获取代码并构建
+
+首次安装执行下面的命令。
+
+```bash
+mkdir -p /opt
+git clone --branch main https://github.com/LIKE9426334946/NeuroScope.git /opt/NeuroScope
+cd /opt/NeuroScope
+npm ci --include=dev
+npm run build
+```
+
+如果 `/opt/NeuroScope` 已经是仓库，在该目录执行 `git pull --ff-only origin main`，然后执行同样的安装依赖和构建命令。若旧版正在运行，先按旧版 README 停止该项目，释放 `3010` 和 `16010`，再拉取代码。
+
+### 3. 安装并启动 systemd 服务
+
+```bash
+cd /opt/NeuroScope
+install -m 0644 deploy/NeuroScope.service /etc/systemd/system/NeuroScope.service
+systemctl daemon-reload
+systemctl enable --now NeuroScope.service
+systemctl status NeuroScope.service --no-pager
+curl --retry 5 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:3010/api/health
+```
+
+健康接口返回 `{"status":"ok","service":"NeuroScope"}`。服务以 root 运行，生产入口为 `/usr/bin/node /opt/NeuroScope/backend/server.js`。
+
+### 4. 启用 Nginx 公网入口
 
 ```bash
 cd /opt/NeuroScope
 install -m 0644 deploy/host-nginx.conf /etc/nginx/sites-available/NeuroScope
 ln -sfn /etc/nginx/sites-available/NeuroScope /etc/nginx/sites-enabled/NeuroScope
 nginx -t && systemctl enable --now nginx && systemctl reload nginx
-curl -fsS http://127.0.0.1:16010/api/health
+curl --retry 5 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:16010/api/health
 ```
 
-浏览器打开 **http://服务器公网IP:16010**。如果本机健康检查成功而外部无法打开，在云安全组或服务器防火墙中放行入站 TCP `16010`。后端 `8000` 和前端 `8080` 仅在 Compose 网络内使用。
+浏览器打开 **http://服务器公网IP:16010**。若本机 `16010` 健康检查成功但公网无法访问，请检查云安全组与服务器防火墙是否放行入站 TCP `16010`。内部端口 `3010` 仅供本机访问。
 
-若服务器由 Docker 独占入口，可在首次启动前将 `.env` 的 `BIND_IP` 设为 `0.0.0.0`、`BIND_PORT` 设为 `16010`。此时由容器内 Nginx 直接接收公网请求，跳过宿主机 Nginx 配置步骤。一个端口只需启用一种入口。
-
-### 3. 更新和查看日志
+### 5. 后续更新和日志
 
 ```bash
 cd /opt/NeuroScope
 git pull --ff-only origin main
-docker compose up -d --build --wait
-docker compose logs --tail 80 nginx backend frontend
+npm ci --include=dev && npm run build && systemctl restart NeuroScope.service
+curl --retry 5 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:16010/api/health
+journalctl -u NeuroScope.service -n 80 --no-pager
 ```
 
-`docker compose down` 停止服务。镜像内包含全部前端资产，浏览器无需下载第三方字体、模型或脚本。
+如果更新修改了服务文件或 Nginx 配置，先按第 3、4 步重新安装对应文件，并执行 `systemctl daemon-reload` 或通过 `nginx -t` 后重载 Nginx。
 
 ## 数据与坐标
 
@@ -80,31 +107,26 @@ docker compose logs --tail 80 nginx backend frontend
 
 最右维变化最快。`[3, 4, 5]` 生成 60 个球，编号 47 对应 `[2, 1, 2]`。支持 1–3 个维度，每一维必须是 1–30 的整数。最大单层 `[30, 30, 30]` 生成 27,000 个球。
 
-FastAPI 通过 `GET /api/network` 提供默认层定义。前端为每对相邻层生成可重复的稀疏模拟连接，每个目标节点最多取三个不同来源。每条记录有 `source_layer`、`source_neuron_index`、`target_layer`、`target_neuron_index` 四个字段。上下游索引从同一份记录建立，切换方向只查询索引。模拟连接仅用于学习，未加载 PyTorch 模型。API 暂时不可用时，页面会标明“内置模拟网络”，使用随包提供的相同默认层定义。
+Node.js 服务通过 `GET /api/network` 提供默认层定义。前端为每对相邻层生成可重复的稀疏模拟连接，每个目标节点最多取三个不同来源。每条记录有 `source_layer`、`source_neuron_index`、`target_layer`、`target_neuron_index` 四个字段。上下游索引从同一份记录建立，切换方向只查询索引。模拟连接仅用于学习，未加载 PyTorch 模型。API 暂时不可用时，页面会标明“内置模拟网络”，使用随包提供的相同默认层定义。
 
 ## 开发与验证
 
 前端使用 React、TypeScript、Vite、Three.js、React Three Fiber、drei、Zustand 和 Tailwind CSS。WebGL2 可用时采用实例化球体渲染，缺少 WebGL2 时用同一套坐标、透视相机、轨道控制和颜色规则投影到 Canvas。两个渲染路径都支持拾取、旋转、缩放和聚焦。
 
-本地开发使用 Node.js 24、npm 和 Python 3.12。在仓库根目录打开两个终端。
+在仓库根目录安装依赖后，开两个终端本地开发。
 
 ```bash
-# 终端一
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --host 127.0.0.1 --port 8000
+# 终端一，启动 127.0.0.1:3010 的 Node.js 服务
+npm ci
+npm start
 ```
 
 ```bash
-# 终端二
-npm ci
-npm test
-npm run build
+# 终端二，启动 Vite 开发服务器
 npm run dev
 ```
 
-打开 Vite 输出的本地地址，开发服务器将 `/api/` 转发到 FastAPI。`/api/docs` 可查看接口文档。
+打开 Vite 输出的本地地址，`/api/` 将代理至 `127.0.0.1:3010`。执行 `npm test` 运行逻辑测试，`npm run build` 生成生产前端 `dist/`。构建后也可直接访问 `http://127.0.0.1:3010` 预览完整应用。`/api/docs` 提供接口说明和可以直接打开的 JSON 端点，`/api/openapi.json` 提供机器可读的接口定义。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -113,7 +135,7 @@ npm run dev
 | `src/connections/`、`src/stores/` | 生成连接记录、双向索引、当前选择与观察方向 |
 | `src/neuron/`、`src/scenes/` | 节点颜色策略、拾取、相机、渲染 |
 | `src/components/` | 层列表、属性检查器和形状编辑器 |
-| `backend/`、`deploy/` | FastAPI、容器和宿主机的 Nginx 配置 |
+| `backend/`、`deploy/` | Node.js 服务、systemd 单元和 Nginx 站点配置 |
 | `tests/` | 坐标、边界、颜色、状态切换和 WebGL 浏览器回归 |
 
-GitHub Actions 的 Ubuntu 验证任务会启动 Compose 三个服务，并在 Chromium 中检查真实 WebGL 画布、球体点击、蓝色像素、方向切换和双击聚焦。
+GitHub Actions 的 Ubuntu 验证任务会使用仓库中的 systemd 单元启动 Node.js 服务，再通过 Nginx 的 16010 端口在 Chromium 中检查真实 WebGL 画布、球体点击、蓝色像素、方向切换和双击聚焦。

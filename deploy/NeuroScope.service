@@ -1,0 +1,17 @@
+[Unit]
+Description=NeuroScope topology explorer
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/NeuroScope
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3010
+ExecStart=/usr/bin/node /opt/NeuroScope/backend/server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
