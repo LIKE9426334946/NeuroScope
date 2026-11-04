@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import preset from '../shared/network.json' with { type: 'json' }
 import schema from './openapi.json' with { type: 'json' }
+import { buildGraph, describeGraph } from '../src/network/graph.js'
 
 const host = process.env.HOST || '127.0.0.1'
 const port = Number(process.env.PORT || 3010)
@@ -11,23 +12,7 @@ if (host !== '127.0.0.1' || !Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error('HOST 必须为 127.0.0.1，PORT 必须是 1–65535 的整数。')
 }
 
-const ids = new Set()
-for (const layer of preset.layers) {
-  const { id, shape } = layer
-  if (
-    !Number.isSafeInteger(id) ||
-    id < 1 ||
-    ids.has(id) ||
-    !Array.isArray(shape) ||
-    shape.length < 1 ||
-    shape.length > 3 ||
-    !shape.every((n) => Number.isInteger(n) && n >= 1 && n <= 30)
-  ) {
-    throw new Error('shared/network.json 中的层编号或 Shape 无效。')
-  }
-  ids.add(id)
-}
-if (!ids.size) throw new Error('shared/network.json 至少需要一层。')
+const network = describeGraph(buildGraph(preset))
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url))
 const index = join(dist, 'index.html')
@@ -40,7 +25,7 @@ app.disable('x-powered-by')
 app.set('case sensitive routing', true)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'NeuroScope' }))
-app.get('/api/network', (_req, res) => res.json(preset))
+app.get('/api/network', (_req, res) => res.json(network))
 app.get('/api/openapi.json', (_req, res) => res.json(schema))
 app.get('/api/docs', (_req, res) => res.sendFile(fileURLToPath(new URL('./api.html', import.meta.url))))
 app.all(['/api/health', '/api/network', '/api/docs', '/api/openapi.json'], (_req, res) => {

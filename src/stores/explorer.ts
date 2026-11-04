@@ -1,7 +1,8 @@
 import { createStore } from 'zustand/vanilla'
-import { generateConnections, indexConnections, type Graph } from '../connections/graph.ts'
-import { createLayer, defaultLayers } from '../network/layers.ts'
-import type { Direction, Layer, NodeRef, Shape } from '../types/network.ts'
+import configuration from '../../shared/network.json' with { type: 'json' }
+import { buildGraph } from '../network/graph.js'
+import { createConv2D } from '../operations/conv2d.js'
+import type { Conv2DOptions, Direction, Graph, Layer, NodeRef, Shape } from '../types/network.ts'
 
 export function adjacentLayer(layers: Layer[], anchor: number, direction: 'upstream' | 'downstream') {
   const index = layers.findIndex((layer) => layer.id === anchor)
@@ -9,7 +10,6 @@ export function adjacentLayer(layers: Layer[], anchor: number, direction: 'upstr
 }
 
 interface Explorer {
-  layers: Layer[]
   graph: Graph
   visible: number
   selected: NodeRef | null
@@ -18,31 +18,36 @@ interface Explorer {
   select: (index: number) => void
   explore: (direction: 'upstream' | 'downstream') => void
   clear: () => void
-  reshape: (shape: Shape) => void
+  reshapeInput: (shape: Shape) => void
+  appendConv2D: (options: Conv2DOptions) => void
+  removeLastOperation: () => void
 }
 
-export function createExplorer(layers = defaultLayers) {
+const unselected = { selected: null, direction: 'self' } as const
+
+export function createExplorer(graph = buildGraph(configuration)) {
   return createStore<Explorer>((set, get) => ({
-    layers,
-    graph: indexConnections(generateConnections(layers)),
-    visible: layers[layers.length - 1].id,
-    selected: null,
-    direction: 'self',
+    graph,
+    visible: graph.layers[0].id,
+    ...unselected,
     select(index) {
-      const { visible, layers } = get()
-      const count = layers.find((layer) => layer.id === visible)!.count
+      const { visible, graph } = get()
+      const count = graph.layers.find((layer) => layer.id === visible)!.count
       if (Number.isInteger(index) && index >= 0 && index < count) {
         set({ selected: { layer: visible, index }, direction: 'self' })
       }
     },
     explore(direction) {
-      const { layers, selected } = get()
+      const { graph, selected } = get()
       if (!selected) return
-      const next = adjacentLayer(layers, selected.layer, direction)
+      const next = adjacentLayer(graph.layers, selected.layer, direction)
       if (next) set({ visible: next.id, direction })
     },
     view(id) {
-      const { layers, selected } = get()
+      const {
+        graph: { layers },
+        selected
+      } = get()
       if (!layers.some((layer) => layer.id === id)) return
       if (selected?.layer === id) return set({ visible: id, direction: 'self' })
       for (const direction of ['upstream', 'downstream'] as const) {
@@ -50,20 +55,39 @@ export function createExplorer(layers = defaultLayers) {
           return set({ visible: id, direction })
         }
       }
-      set({ visible: id, selected: null, direction: 'self' })
+      set({ visible: id, ...unselected })
     },
     clear() {
-      set({ selected: null, direction: 'self' })
+      set(unselected)
     },
-    reshape(shape) {
-      const { visible, layers } = get()
-      const changed = createLayer(visible, shape)
-      const updated = layers.map((layer) => (layer.id === visible ? changed : layer))
+    reshapeInput(shape) {
+      const { graph } = get()
+      // in_channels follows the preceding tensor; validate the entire chain before committing.
+      const operations = graph.operations.map((op) => ({
+        ...op.parameters,
+        in_channels: undefined,
+        type: op.type
+      }))
+      const next = buildGraph({ input_shape: shape, operations })
+      set({ graph: next, visible: next.layers[0].id, ...unselected })
+    },
+    appendConv2D(options) {
+      const { graph } = get()
+      const op = createConv2D(graph.layers[graph.layers.length - 1], options)
       set({
-        layers: updated,
-        graph: indexConnections(generateConnections(updated)),
-        selected: null,
-        direction: 'self'
+        graph: { layers: [...graph.layers, op.output], operations: [...graph.operations, op] },
+        visible: op.output.id,
+        ...unselected
+      })
+    },
+    removeLastOperation() {
+      const { graph } = get()
+      const last = graph.operations.at(-1)
+      if (!last) return
+      set({
+        graph: { layers: graph.layers.slice(0, -1), operations: graph.operations.slice(0, -1) },
+        visible: last.input.id,
+        ...unselected
       })
     }
   }))

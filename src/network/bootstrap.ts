@@ -1,31 +1,12 @@
-import { createLayer, defaultLayers } from './layers'
-import type { Layer } from '../types/network'
-
-function readLayers(data: unknown): Layer[] {
-  if (
-    !data ||
-    typeof data !== 'object' ||
-    !('layers' in data) ||
-    !Array.isArray(data.layers) ||
-    !data.layers.length
-  ) {
-    throw new Error('无效的网络定义')
-  }
-  const ids = new Set<number>()
-  return data.layers.map((item) => {
-    if (!item || !Number.isSafeInteger(item.id) || item.id < 1 || ids.has(item.id))
-      throw new Error('无效的层编号')
-    ids.add(item.id)
-    return createLayer(item.id, item.shape)
-  })
-}
+import configuration from '../../shared/network.json' with { type: 'json' }
+import { buildGraph } from './graph.js'
 
 export async function loadNetwork() {
   try {
     const response = await fetch('/api/network', { signal: AbortSignal.timeout(2500) })
     if (!response.ok) throw new Error('API ' + response.status)
-    return { layers: readLayers(await response.json()), source: '服务器模拟网络' }
+    return { graph: buildGraph(await response.json()), source: '服务器计算图' }
   } catch {
-    return { layers: defaultLayers, source: '内置模拟网络' }
+    return { graph: buildGraph(configuration), source: '内置计算图' }
   }
 }

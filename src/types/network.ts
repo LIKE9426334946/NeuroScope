@@ -10,9 +10,36 @@ export interface NodeRef {
   index: number
 }
 export type Direction = 'self' | 'upstream' | 'downstream'
-export interface Connection {
-  source_layer: number
-  source_neuron_index: number
-  target_layer: number
-  target_neuron_index: number
+export type Pair = [number, number]
+export type Conv2DOptions = {
+  in_channels?: number
+  out_channels: number
+  kernel_size: number | Pair
+  stride?: number | Pair
+  padding?: number | Pair
+  dilation?: number | Pair
+  groups?: number
+}
+export type Conv2DParameters = {
+  in_channels: number
+  out_channels: number
+  kernel_size: Pair
+  stride: Pair
+  padding: Pair
+  dilation: Pair
+  groups: number
+}
+
+export interface Operation {
+  type: 'Conv2D'
+  input: Layer
+  output: Layer
+  parameters: Conv2DParameters
+  getUpstreamNeurons: (outputNeuronIndex: number) => number[]
+  getDownstreamNeurons: (inputNeuronIndex: number) => number[]
+}
+
+export interface Graph {
+  layers: Layer[]
+  operations: Operation[]
 }

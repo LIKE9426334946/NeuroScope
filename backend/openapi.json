@@ -56,15 +56,7 @@
             "title": "Id"
           },
           "shape": {
-            "items": {
-              "type": "integer",
-              "maximum": 30.0,
-              "minimum": 1.0
-            },
-            "type": "array",
-            "maxItems": 3,
-            "minItems": 1,
-            "title": "Shape"
+            "$ref": "#/components/schemas/Shape"
           }
         },
         "type": "object",
@@ -76,20 +68,105 @@
       },
       "Network": {
         "properties": {
+          "input_shape": {
+            "$ref": "#/components/schemas/Shape"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Conv2D"
+            }
+          },
           "layers": {
             "items": {
               "$ref": "#/components/schemas/Layer"
             },
             "type": "array",
             "minItems": 1,
-            "title": "Layers"
+            "title": "Layers",
+            "readOnly": true,
+            "description": "Derived tensor shapes, including the input."
           }
         },
         "type": "object",
         "required": [
+          "input_shape",
+          "operations",
           "layers"
         ],
         "title": "Network"
+      },
+      "Shape": {
+        "items": {
+          "type": "integer",
+          "maximum": 30.0,
+          "minimum": 1.0
+        },
+        "type": "array",
+        "maxItems": 3,
+        "minItems": 1,
+        "title": "Shape"
+      },
+      "SpatialPair": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": "Height and width, in that order."
+      },
+      "Conv2D": {
+        "type": "object",
+        "required": [
+          "type",
+          "in_channels",
+          "out_channels",
+          "kernel_size",
+          "stride",
+          "padding",
+          "dilation",
+          "groups"
+        ],
+        "properties": {
+          "type": {
+            "const": "Conv2D"
+          },
+          "in_channels": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "out_channels": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "kernel_size": {
+            "$ref": "#/components/schemas/SpatialPair"
+          },
+          "stride": {
+            "$ref": "#/components/schemas/SpatialPair"
+          },
+          "padding": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "dilation": {
+            "$ref": "#/components/schemas/SpatialPair"
+          },
+          "groups": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          }
+        }
       }
     }
   }

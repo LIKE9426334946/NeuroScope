@@ -1,110 +1,106 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { generateConnections, indexConnections, neighbours } from '../src/connections/graph.ts'
-import { createLayer, defaultLayers } from '../src/network/layers.ts'
+import { neighbours } from '../src/connections/graph.ts'
+import { buildGraph } from '../src/network/graph.js'
 import { nodeTone } from '../src/neuron/appearance.ts'
 import { createExplorer } from '../src/stores/explorer.ts'
 
-test('all default adjacency queries and node colours agree with explicit edge records', () => {
-  const edges = generateConnections(defaultLayers)
-  assert.deepEqual(generateConnections(defaultLayers), edges)
-  assert.equal(new Set(edges.map((e) => JSON.stringify(e))).size, edges.length)
-  const graph = indexConnections(edges)
-  for (const layer of defaultLayers) {
-    for (let id = 0; id < layer.count; id++) {
-      const node = { layer: layer.id, index: id }
-      const sources = edges
-        .filter((e) => e.target_layer === layer.id && e.target_neuron_index === id)
-        .map((e) => e.source_neuron_index)
-      const targets = edges
-        .filter((e) => e.source_layer === layer.id && e.source_neuron_index === id)
-        .map((e) => e.target_neuron_index)
-      for (const [direction, expected, adjacent] of [
-        ['upstream', sources, layer.id - 1],
-        ['downstream', targets, layer.id + 1]
-      ] as const) {
-        const actual = neighbours(graph, node, direction)
-        assert.deepEqual(actual, expected)
-        const count = defaultLayers.find((l) => l.id === adjacent)?.count ?? 0
-        const related = new Set(actual)
-        for (let i = 0; i < count; i++)
-          assert.equal(nodeTone(i, null, related), expected.includes(i) ? 'related' : 'normal')
-      }
-      assert.equal(nodeTone(id, id, new Set()), 'selected')
-    }
-  }
-})
-
-test('navigation uses the original anchor, never mutates edges, and recalculates after reselection', () => {
+test('direction changes from a middle tensor retain the same selected neuron and query the correct operation', () => {
   const store = createExplorer()
-  const state = () => store.getState()
-  const originalGraph = state().graph
-  assert.equal(state().selected, null)
-  state().explore('upstream')
-  assert.equal(state().visible, 3)
-  state().view(2)
-  state().select(5)
-  const anchor = state().selected
-  state().explore('upstream')
-  assert.equal(state().visible, 1)
-  assert.equal(state().selected, anchor)
-  assert.deepEqual(neighbours(state().graph, anchor, state().direction), [1, 0, 3])
-  state().explore('downstream')
-  assert.equal(state().visible, 3)
-  assert.equal(state().selected, anchor)
-  assert.deepEqual(neighbours(state().graph, anchor, state().direction), [8, 9, 10, 11])
-  state().view(2)
-  assert.equal(state().direction, 'self')
-  assert.equal(state().selected, anchor)
-  state().select(6)
-  state().explore('upstream')
-  assert.notDeepEqual(neighbours(state().graph, state().selected, state().direction), [1, 0, 3])
-  state().select(1)
-  assert.deepEqual(state().selected, { layer: 1, index: 1 })
-  assert.equal(state().direction, 'self')
-  state().explore('upstream')
-  assert.equal(state().visible, 1)
-  state().view(3)
-  assert.equal(state().selected, null)
-  state().select(26)
-  state().explore('downstream')
-  assert.equal(state().visible, 3)
-  state().clear()
-  assert.equal(state().selected, null)
-  assert.equal(state().graph, originalGraph)
-})
-
-test('zero neighbours, singleton layers and invalid selections remain consistent', () => {
-  const layers = [createLayer(1, [30]), createLayer(2, [1]), createLayer(3, [1])]
-  const store = createExplorer(layers)
-  const state = () => store.getState()
-  state().view(1)
-  state().select(29)
-  state().explore('downstream')
-  assert.equal(state().visible, 2)
-  assert.deepEqual(neighbours(state().graph, state().selected, 'downstream'), [])
-  state().view(1)
-  state().select(30)
-  state().select(-1)
-  state().select(0.5)
-  assert.deepEqual(state().selected, { layer: 1, index: 29 })
-  state().reshape([1])
-  assert.equal(state().selected, null)
-  assert.equal(state().graph.connections.length, 2)
-  state().view(2)
-  state().select(0)
-  state().explore('upstream')
-  assert.deepEqual(neighbours(state().graph, state().selected, 'upstream'), [0])
-})
-
-test('three full 30³ tensors keep connections sparse and all endpoints in range', () => {
-  const layers = [1, 2, 3].map((id) => createLayer(id, [30, 30, 30]))
-  const graph = indexConnections(generateConnections(layers))
-  assert.ok(graph.connections.length <= 2 * 27_000 * 3)
-  for (const edge of graph.connections) {
-    assert.equal(edge.target_layer, edge.source_layer + 1)
-    assert.ok(edge.source_neuron_index >= 0 && edge.source_neuron_index < 27_000)
-    assert.ok(edge.target_neuron_index >= 0 && edge.target_neuron_index < 27_000)
+  const s = () => store.getState()
+  s().appendConv2D({ out_channels: 4, kernel_size: 1, groups: 2 })
+  const graph = s().graph
+  s().view(2)
+  s().select(4)
+  const anchor = s().selected
+  s().explore('upstream')
+  assert.equal(s().visible, 1)
+  assert.equal(s().selected, anchor)
+  const upstream = new Set(neighbours(graph, anchor, 'upstream'))
+  for (let i = 0; i < 75; i++) {
+    const y = Math.floor((i % 25) / 5),
+      x = i % 5
+    assert.equal(
+      nodeTone(i, null, upstream),
+      y >= 1 && y <= 3 && x >= 1 && x <= 3 ? 'related' : 'normal'
+    )
   }
-  assert.ok(neighbours(graph, { layer: 3, index: 26_999 }, 'upstream').length > 0)
+  s().explore('downstream')
+  assert.equal(s().visible, 3)
+  assert.equal(s().selected, anchor)
+  assert.deepEqual(neighbours(graph, anchor, 'downstream'), [4, 13])
+  s().view(2)
+  assert.equal(s().direction, 'self')
+  assert.equal(nodeTone(4, s().selected!.index, new Set()), 'selected')
+  s().select(70)
+  s().explore('downstream')
+  assert.deepEqual(neighbours(graph, s().selected, 'downstream'), [25, 34])
+  s().select(34)
+  assert.deepEqual(s().selected, { layer: 3, index: 34 })
+  s().explore('downstream')
+  assert.equal(s().direction, 'self')
+  s().view(1)
+  assert.equal(s().selected, null)
+  s().select(0)
+  s().explore('upstream')
+  assert.equal(s().visible, 1)
+  s().clear()
+  assert.equal(s().graph, graph)
+  assert.deepEqual(neighbours(graph, s().selected, 'upstream'), [])
+})
+
+test('reshape only edits the input and recomputes every derived tensor, with atomic rollback on a late invalid output', () => {
+  const store = createExplorer()
+  const s = () => store.getState()
+  s().appendConv2D({ out_channels: 2, kernel_size: 3 })
+  s().reshapeInput([6, 7, 6])
+  assert.deepEqual(
+    s().graph.layers.map((l) => l.shape),
+    [
+      [6, 7, 6],
+      [8, 5, 4],
+      [2, 3, 2]
+    ]
+  )
+  assert.deepEqual(
+    s().graph.operations.map((op) => op.parameters.in_channels),
+    [6, 8]
+  )
+  s().view(2)
+  s().select(4)
+  s().explore('upstream')
+  const before = s()
+  assert.throws(() => s().reshapeInput([3, 4, 4]), /Layer 3/)
+  assert.equal(s(), before)
+  assert.throws(() => s().appendConv2D({ out_channels: 3, kernel_size: 1, groups: 2 }))
+  assert.equal(s(), before)
+  s().removeLastOperation()
+  assert.equal(s().visible, 2)
+  assert.equal(s().selected, null)
+  s().removeLastOperation()
+  s().reshapeInput([4, 5])
+  assert.deepEqual(
+    s().graph.layers.map((l) => l.shape),
+    [[4, 5]]
+  )
+  assert.throws(() => s().appendConv2D({ out_channels: 1, kernel_size: 1 }), /三维/)
+  s().reshapeInput([5])
+  s().select(4)
+  s().select(5)
+  s().select(-1)
+  s().select(1.1)
+  s().removeLastOperation()
+  assert.deepEqual(s().selected, { layer: 1, index: 4 })
+})
+
+test('zero neighbours from an uncovered input stay white when browsing its neighbouring layer', () => {
+  const store = createExplorer(buildGraph({ input_shape: [1, 3, 3], operations: [] }))
+  const s = () => store.getState()
+  s().appendConv2D({ out_channels: 1, kernel_size: 1, stride: 2 })
+  s().view(1)
+  s().select(4)
+  s().explore('downstream')
+  assert.equal(s().visible, 2)
+  assert.deepEqual(neighbours(s().graph, s().selected, 'downstream'), [])
+  assert.equal(nodeTone(0, null, new Set()), 'normal')
 })

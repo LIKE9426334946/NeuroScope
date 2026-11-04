@@ -3,7 +3,7 @@ import { Icon } from './Icon'
 import { PanelHeading } from './Layout'
 import { layerName } from '../network/layers'
 import { formatShape, indexToCoords } from '../tensor/layout'
-import type { Direction, Layer, NodeRef } from '../types/network'
+import type { Direction, Layer, NodeRef, Operation } from '../types/network'
 
 export const directionNames: Record<Direction, string> = {
   self: '当前层',
@@ -16,6 +16,7 @@ interface Props {
   selected: NodeRef | null
   direction: Direction
   related: readonly number[]
+  operation?: Operation
   upstream: number
   downstream: number
   onSelect: (index: number) => void
@@ -71,6 +72,7 @@ export function Inspector({
   selected,
   direction,
   related,
+  operation,
   upstream,
   downstream,
   onSelect,
@@ -124,6 +126,18 @@ export function Inspector({
             </dd>
           </div>
           <div>
+            <dt>当前运算</dt>
+            <dd>{selected ? (operation?.type ?? '输入 Tensor') : '—'}</dd>
+          </div>
+          <div>
+            <dt>上一层依赖数</dt>
+            <dd>{selected ? upstream : '—'}</dd>
+          </div>
+          <div>
+            <dt>下一层影响数</dt>
+            <dd>{selected ? downstream : '—'}</dd>
+          </div>
+          <div>
             <dt>观察方向</dt>
             <dd>{directionNames[direction]}</dd>
           </div>
@@ -132,7 +146,7 @@ export function Inspector({
             <dd className={observing ? 'related-text' : ''}>{selected ? related.length : '—'}</dd>
           </div>
         </dl>
-        {selected && (
+        {selected && (observing || operation) && (
           <div className="relation-detail">
             <div className="eyebrow">CONNECTIONS</div>
             {observing ? (
@@ -154,11 +168,14 @@ export function Inspector({
                 </button>
               </>
             ) : (
-              <p className="counts">
-                上游 <b>{upstream}</b>
-                <span />
-                下游 <b>{downstream}</b>
-              </p>
+              operation && (
+                <p className="op-caption">
+                  {layerName(operation.input.id)} → {layerName(operation.output.id)}
+                  <br />
+                  卷积核 {operation.parameters.kernel_size.join('×')} · 分组{' '}
+                  {operation.parameters.groups}
+                </p>
+              )
             )}
           </div>
         )}

@@ -800,24 +800,6 @@ p {
   background: transparent;
   border: 0;
 }
-.counts {
-  margin-top: 7px;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-.counts b {
-  color: var(--text);
-  font-family: Consolas, monospace;
-}
-.counts > span {
-  width: 1px;
-  height: 12px;
-  background: var(--border);
-  margin: 0 4px;
-}
 .index-form {
   margin-top: auto;
   border-top: 1px solid var(--border);
@@ -909,4 +891,95 @@ p {
 
 .index-overlay {
   pointer-events: none;
+}
+
+.graph-actions {
+  display: grid;
+  gap: 6px;
+  margin: 11px 10px 15px;
+}
+.graph-actions .edit-shape {
+  margin: 0;
+}
+.graph-actions .add-op {
+  border-style: solid;
+  color: var(--mint);
+}
+.graph-actions small,
+.op-caption {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.graph-actions small {
+  text-align: center;
+}
+.undo-op {
+  justify-self: center;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.undo-op:hover {
+  color: var(--text);
+}
+.graph-actions button:disabled,
+.dialog-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.op-caption {
+  margin: 7px 0 0;
+}
+.conv-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.conv-fields label {
+  margin: 9px 0 0;
+}
+.conv-fields label code {
+  color: var(--muted);
+  font-size: 10px;
+}
+.conv-fields input {
+  margin-top: 4px;
+}
+.conv-fields input:read-only {
+  color: var(--muted);
+}
+.conv-input-channels {
+  grid-column: 1 / -1;
+}
+.shape-dialog .conv-help {
+  margin-top: 12px;
+  font-size: 11px;
+}
+.shape-dialog .shape-preview {
+  margin-top: 12px;
+}
+.shape-preview strong {
+  color: var(--mint);
+  font-family: Consolas, monospace;
+}
+.layer-panel nav {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+/* Keep the orbit viewport steady as dependencies expand in the desktop inspector. */
+@media (min-width: 951px) {
+  .workbench {
+    height: clamp(520px, calc(100dvh - 237px), 920px);
+  }
+  .inspector-content {
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .inspector > .panel-title,
+  .inspector > .index-form,
+  .layer-row {
+    flex-shrink: 0;
+  }
 }

@@ -4,6 +4,7 @@ import { Icon } from './components/Icon'
 import { Layout } from './components/Layout'
 import { LayerPanel } from './components/LayerPanel'
 import { ShapeDialog } from './components/ShapeDialog'
+import { Conv2DDialog } from './components/Conv2DDialog'
 import { directionNames, Inspector } from './components/Inspector'
 import { TensorScene } from './scenes/TensorScene'
 import { layerName } from './network/layers'
@@ -12,10 +13,24 @@ import { neighbours } from './connections/graph'
 import { adjacentLayer, type createExplorer } from './stores/explorer'
 import type { Position } from './types/network'
 
+const noNodes: readonly number[] = []
+
 export function App({ store, source }: { store: ReturnType<typeof createExplorer>; source: string }) {
-  const { layers, graph, visible, selected, direction, view, select, explore, clear, reshape } =
-    useStore(store)
-  const [editing, setEditing] = useState(false)
+  const {
+    graph,
+    visible,
+    selected,
+    direction,
+    view,
+    select,
+    explore,
+    clear,
+    reshapeInput,
+    appendConv2D,
+    removeLastOperation
+  } = useStore(store)
+  const { layers, operations } = graph
+  const [editing, setEditing] = useState<'input' | 'conv' | null>(null)
   const [labels, setLabels] = useState(false)
   const [cameraRequest, setCameraRequest] = useState<{
     positions: Position[]
@@ -24,7 +39,12 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
   const layer = layers.find((item) => item.id === visible)!
   const anchor = layers.find((item) => item.id === selected?.layer) ?? null
   const positions = useMemo(() => positionsFor(layer.shape), [layer])
-  const related = neighbours(graph, selected, direction)
+  const upstream = useMemo(() => neighbours(graph, selected, 'upstream'), [graph, selected])
+  const downstream = useMemo(() => neighbours(graph, selected, 'downstream'), [graph, selected])
+  const related = direction === 'upstream' ? upstream : direction === 'downstream' ? downstream : noNodes
+  const incoming = operations.find((op) => op.output.id === anchor?.id)
+  const outgoing = operations.find((op) => op.input.id === anchor?.id)
+  const activeOp = direction === 'downstream' ? outgoing : (incoming ?? outgoing)
   const highlights = useMemo(() => new Set(related), [related])
   const canUp = selected && adjacentLayer(layers, selected.layer, 'upstream')
   const canDown = selected && adjacentLayer(layers, selected.layer, 'downstream')
@@ -38,7 +58,14 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
       layerCount={layers.length}
       nodeCount={layers.reduce((sum, item) => sum + item.count, 0)}
     >
-      <LayerPanel layers={layers} visible={visible} onView={view} onEdit={() => setEditing(true)} />
+      <LayerPanel
+        graph={graph}
+        visible={visible}
+        onView={view}
+        onEdit={() => setEditing('input')}
+        onAdd={() => setEditing('conv')}
+        onRemove={removeLastOperation}
+      />
       <section className="panel viewer" aria-label="张量视图">
         <div className="viewer-head">
           <div>
@@ -143,14 +170,24 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
         selected={selected}
         direction={direction}
         related={related}
-        upstream={neighbours(graph, selected, 'upstream').length}
-        downstream={neighbours(graph, selected, 'downstream').length}
+        upstream={upstream.length}
+        operation={activeOp}
+        downstream={downstream.length}
         onSelect={select}
         onReturn={() => {
           if (selected) view(selected.layer)
         }}
       />
-      {editing && <ShapeDialog layer={layer} onApply={reshape} onClose={() => setEditing(false)} />}
+      {editing === 'input' && (
+        <ShapeDialog layer={layers[0]} onApply={reshapeInput} onClose={() => setEditing(null)} />
+      )}
+      {editing === 'conv' && (
+        <Conv2DDialog
+          input={layers[layers.length - 1]}
+          onApply={appendConv2D}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </Layout>
   )
 }

@@ -6,10 +6,10 @@ import { createExplorer } from './stores/explorer'
 import './styles.css'
 
 const root = createRoot(document.getElementById('root')!)
-void loadNetwork().then(({ layers, source }) => {
+void loadNetwork().then(({ graph, source }) => {
   root.render(
     <StrictMode>
-      <App store={createExplorer(layers)} source={source} />
+      <App store={createExplorer(graph)} source={source} />
     </StrictMode>
   )
 })

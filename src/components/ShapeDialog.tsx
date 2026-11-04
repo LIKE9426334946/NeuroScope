@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import type { Layer, Shape } from '../types/network'
 import { parseShape } from '../tensor/layout'
-import { layerName } from '../network/layers'
-import { Icon } from './Icon'
+import { ParameterDialog } from './ParameterDialog'
 
 export function ShapeDialog({
   layer,
@@ -13,62 +12,43 @@ export function ShapeDialog({
   onApply: (shape: Shape) => void
   onClose: () => void
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
   const [text, setText] = useState(layer.shape.join(', '))
   const [error, setError] = useState('')
-  useEffect(() => {
-    const element = dialog.current!
-    element.showModal()
-    return () => element.close()
-  }, [])
-  function submit(event: FormEvent) {
-    event.preventDefault()
+  function apply() {
     try {
-      const shape = parseShape(text)
-      onApply(shape)
+      onApply(parseShape(text))
       onClose()
     } catch (reason) {
       setError((reason as Error).message)
     }
   }
   return (
-    <dialog ref={dialog} className="shape-dialog" aria-labelledby="shape-title" onCancel={onClose}>
-      <form onSubmit={submit}>
-        <div className="dialog-title">
-          <div className="eyebrow">TENSOR SHAPE</div>
-          <button type="button" aria-label="关闭" onClick={onClose}>
-            <Icon name="close" />
-          </button>
-        </div>
-        <h2 id="shape-title">调整 {layerName(layer.id)} 的 Shape</h2>
-        <p>输入 1 至 3 个维度，每个维度的长度为 1–30。</p>
-        <label htmlFor="shape-input">Tensor Shape</label>
-        <input
-          id="shape-input"
-          autoFocus
-          autoComplete="off"
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value)
-            setError('')
-          }}
-          aria-describedby="shape-note"
-        />
-        <p id="shape-note">例如 3, 4, 5 会生成 60 个球体。修改后将重建模拟连接。</p>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
-            取消
-          </button>
-          <button className="apply-button" type="submit">
-            应用 Shape
-          </button>
-        </div>
-      </form>
-    </dialog>
+    <ParameterDialog
+      eyebrow="INPUT TENSOR"
+      title="调整输入 Tensor Shape"
+      submitText="应用 Shape"
+      onSubmit={apply}
+      onClose={onClose}
+    >
+      <p>支持 1 至 3 个维度，每个维度为 1–30。Conv2D 使用 [C, H, W]。</p>
+      <label htmlFor="shape-input">输入 Shape</label>
+      <input
+        id="shape-input"
+        autoFocus
+        autoComplete="off"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value)
+          setError('')
+        }}
+        aria-describedby="shape-note"
+      />
+      <p id="shape-note">应用后会重新推导所有输出层。若现有卷积不适用于新输入，可先移除末尾运算。</p>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+    </ParameterDialog>
   )
 }

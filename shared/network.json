@@ -1,7 +1,6 @@
 {
-  "layers": [
-    { "id": 1, "shape": [5] },
-    { "id": 2, "shape": [4, 4] },
-    { "id": 3, "shape": [3, 3, 3] }
+  "input_shape": [3, 5, 5],
+  "operations": [
+    { "type": "Conv2D", "in_channels": 3, "out_channels": 8, "kernel_size": 3, "stride": 1, "padding": 0, "dilation": 1, "groups": 1 }
   ]
 }
