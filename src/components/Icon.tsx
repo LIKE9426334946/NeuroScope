@@ -19,6 +19,10 @@ const paths = {
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   link: 'm9 14 6-6m-3-3 2-2a5 5 0 0 1 7 7l-3 3m-6 6-2 2a5 5 0 0 1-7-7l3-3',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
+  pin: 'm15 3 6 6-3 1-4 4-1 4-3-3-6 6 6-6-3-3 4-1 4-4V3Z',
+  external: 'M13 4h7v7m0-7L10 14m-1-9H5v14h14v-4',
+  plus: 'M4 12h16M12 4v16',
+  grip: 'M8 6h.01M16 6h.01M8 12h.01M16 12h.01M8 18h.01M16 18h.01',
   help: 'M8 9a4 4 0 1 1 6 3c-1 1-2 1-2 3m0 3h.01'
 } as const
 

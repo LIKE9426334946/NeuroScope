@@ -16,6 +16,8 @@ interface Props {
   selected: NodeRef | null
   direction: Direction
   related: readonly number[]
+  pinned: boolean
+  onPin: (pinned: boolean) => void
   operation?: Operation
   upstream: number
   downstream: number
@@ -72,6 +74,8 @@ export function Inspector({
   selected,
   direction,
   related,
+  pinned,
+  onPin,
   operation,
   upstream,
   downstream,
@@ -90,6 +94,10 @@ export function Inspector({
             </div>
             <strong>Neuron #{selected.index}</strong>
             <span>{layerName(anchor.id)}</span>
+            <button className="pin-action" aria-pressed={pinned} onClick={() => onPin(!pinned)}>
+              <Icon name="pin" size={13} />
+              {pinned ? '从首页移除' : '固定到首页'}
+            </button>
           </div>
         ) : (
           <div className="empty-focus">

@@ -10,12 +10,14 @@ import { TensorScene } from './scenes/TensorScene'
 import { layerName } from './network/layers'
 import { formatShape, positionsFor } from './tensor/layout'
 import { neighbours } from './connections/graph'
-import { adjacentLayer, type createExplorer } from './stores/explorer'
+import { adjacentLayer } from './stores/explorer'
 import type { Position } from './types/network'
+import type { Presentation } from './presentation/session'
 
 const noNodes: readonly number[] = []
 
-export function App({ store, source }: { store: ReturnType<typeof createExplorer>; source: string }) {
+export function App({ session }: { session: Presentation }) {
+  const { source, pins, notice } = useStore(session.live)
   const {
     graph,
     visible,
@@ -28,7 +30,7 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
     reshapeInput,
     appendConv2D,
     removeLastOperation
-  } = useStore(store)
+  } = useStore(session.store)
   const { layers, operations } = graph
   const [editing, setEditing] = useState<'input' | 'conv' | null>(null)
   const [labels, setLabels] = useState(false)
@@ -55,11 +57,17 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
   return (
     <Layout
       source={source}
+      notice={notice}
       layerCount={layers.length}
       nodeCount={layers.reduce((sum, item) => sum + item.count, 0)}
     >
       <LayerPanel
         graph={graph}
+        pins={pins}
+        onLocate={(node) => {
+          view(node.layer)
+          select(node.index)
+        }}
         visible={visible}
         onView={view}
         onEdit={() => setEditing('input')}
@@ -170,6 +178,10 @@ export function App({ store, source }: { store: ReturnType<typeof createExplorer
         selected={selected}
         direction={direction}
         related={related}
+        pinned={pins.some((node) => node.layer === selected?.layer && node.index === selected.index)}
+        onPin={(pinned) => {
+          if (selected) void session.setPins(selected.layer, [selected.index], pinned)
+        }}
         upstream={upstream.length}
         operation={activeOp}
         downstream={downstream.length}

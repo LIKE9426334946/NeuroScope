@@ -1,4 +1,4 @@
-import type { Graph } from '../types/network'
+import type { Graph, NodeRef } from '../types/network'
 import { layerName, rankName } from '../network/layers'
 import { formatShape } from '../tensor/layout'
 import { Legend, PanelHeading } from './Layout'
@@ -7,13 +7,15 @@ import { Icon } from './Icon'
 interface Props {
   graph: Graph
   visible: number
+  pins: NodeRef[]
+  onLocate: (node: NodeRef) => void
   onView: (id: number) => void
   onEdit: () => void
   onAdd: () => void
   onRemove: () => void
 }
 
-export function LayerPanel({ graph, visible, onView, onEdit, onAdd, onRemove }: Props) {
+export function LayerPanel({ graph, visible, pins, onLocate, onView, onEdit, onAdd, onRemove }: Props) {
   const tail = graph.layers[graph.layers.length - 1]
   const canConvolve = tail.shape.length === 3
   return (
@@ -64,6 +66,22 @@ export function LayerPanel({ graph, visible, onView, onEdit, onAdd, onRemove }: 
           </button>
         )}
       </div>
+      {pins.length > 0 && (
+        <details className="admin-pins">
+          <summary>已固定到首页 · {pins.length}</summary>
+          <div>
+            {pins.map((n) => (
+              <button
+                key={n.layer + '-' + n.index}
+                aria-label={`查看已固定的 ${layerName(n.layer)} #${n.index}`}
+                onClick={() => onLocate(n)}
+              >
+                L{n.layer} #{n.index}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
       <Legend />
     </aside>
   )

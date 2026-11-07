@@ -5,12 +5,14 @@ export function Layout({
   children,
   layerCount,
   nodeCount,
-  source
+  source,
+  notice
 }: {
   children: ReactNode
   layerCount: number
   nodeCount: number
   source: string
+  notice: string
 }) {
   return (
     <div className="shell">
@@ -27,7 +29,14 @@ export function Layout({
           <span className="live-dot" />
           {source}
           <span className="header-divider" />
-          <span className="mono version">v1.0</span>
+          {notice && (
+            <span role="status" className="sync-notice">
+              {notice}
+            </span>
+          )}
+          <a className="board-link" href="/" target="_blank" rel="noopener">
+            打开展示页 <Icon name="external" size={13} />
+          </a>
         </div>
       </header>
       <main>

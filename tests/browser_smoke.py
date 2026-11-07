@@ -4,6 +4,7 @@ import os
 import re
 
 from PIL import Image
+from display_smoke import temporary_presentation, verify_display
 from playwright.sync_api import expect, sync_playwright
 
 URL = os.getenv("NEUROSCOPE_URL", "http://127.0.0.1:16010")
@@ -148,7 +149,7 @@ def verify_webgl(page):
     assert "/api/network" in page.request.get(f"{URL}/api/openapi.json").json()["paths"]
     assert page.request.get(f"{URL}/api/missing").status == 404
     assert page.request.get(f"{URL}/assets/missing.js").status == 404
-    page.goto(URL)
+    page.goto(URL + "/admin")
     expect(page.locator(".header-status")).to_contain_text("服务器计算图")
     expect(page.locator("canvas[data-engine^='three.js']")).to_be_visible()
     stage = page.locator(".stage").bounding_box()
@@ -163,14 +164,24 @@ if __name__ == "__main__":
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
         try:
-            verify_webgl(browser.new_page(viewport={"width": 1440, "height": 900}))
+            fixture = browser.new_context()
+            with temporary_presentation(fixture.request, URL):
+                verify_display(browser, URL)
+            with temporary_presentation(fixture.request, URL):
+                admin = browser.new_page(viewport={"width": 1440, "height": 900})
+                try:
+                    verify_webgl(admin)
+                finally:
+                    admin.close()
+            fixture.close()
         finally:
             browser.close()
         browser = playwright.chromium.launch(args=["--disable-webgl"])
         try:
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             page.route("**/api/network", lambda route: route.fulfill(status=503, body="unavailable"))
-            page.goto(URL)
+            page.route("**/api/presentation**", lambda route: route.fulfill(status=503, body="unavailable"))
+            page.goto(URL + "/admin")
             expect(page.locator(".header-status")).to_contain_text("内置计算图")
             expect(page.locator("canvas.projection-canvas")).to_be_visible()
             verify_default(page)

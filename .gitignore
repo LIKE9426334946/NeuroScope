@@ -8,3 +8,5 @@ __pycache__/
 .openai/
 
 .vite/
+
+data/presentation.json*

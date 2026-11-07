@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import preset from '../shared/network.json' with { type: 'json' }
 import schema from './openapi.json' with { type: 'json' }
 import { buildGraph, describeGraph } from '../src/network/graph.js'
+import { presentationRouter } from './presentation.js'
 
 const host = process.env.HOST || '127.0.0.1'
 const port = Number(process.env.PORT || 3010)
@@ -24,6 +25,13 @@ const app = express()
 app.disable('x-powered-by')
 app.set('case sensitive routing', true)
 
+app.use(
+  '/api/presentation',
+  presentationRouter(
+    network,
+    process.env.NEUROSCOPE_DATA_DIR || fileURLToPath(new URL('../data/', import.meta.url))
+  )
+)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'NeuroScope' }))
 app.get('/api/network', (_req, res) => res.json(network))
 app.get('/api/openapi.json', (_req, res) => res.json(schema))

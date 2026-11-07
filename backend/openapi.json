@@ -44,6 +44,118 @@
           }
         }
       }
+    },
+    "/api/presentation": {
+      "get": {
+        "summary": "Current presentation",
+        "responses": {
+          "200": {
+            "description": "Current snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Presentation"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update editor view using its current revision",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditorUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Presentation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid editor state or neuron index"
+          },
+          "409": {
+            "description": "State or layer was changed by another client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Presentation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/presentation/pins": {
+      "post": {
+        "summary": "Add or remove neurons from one layer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Presentation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid editor state or neuron index"
+          },
+          "409": {
+            "description": "State or layer was changed by another client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Presentation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/presentation/events": {
+      "get": {
+        "summary": "Stream the latest snapshot and subsequent changes",
+        "responses": {
+          "200": {
+            "description": "Server-sent events with Presentation JSON",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -167,6 +279,144 @@
             "maximum": 30
           }
         }
+      },
+      "NodeRef": {
+        "type": "object",
+        "properties": {
+          "layer": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "layer",
+          "index"
+        ]
+      },
+      "EditorUpdate": {
+        "type": "object",
+        "properties": {
+          "editorRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "network": {
+            "$ref": "#/components/schemas/Network"
+          },
+          "visible": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "enum": [
+              "self",
+              "upstream",
+              "downstream"
+            ]
+          }
+        },
+        "required": [
+          "editorRevision",
+          "network",
+          "visible",
+          "selected",
+          "direction"
+        ]
+      },
+      "Presentation": {
+        "type": "object",
+        "properties": {
+          "editorRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "network": {
+            "$ref": "#/components/schemas/Network"
+          },
+          "visible": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "enum": [
+              "self",
+              "upstream",
+              "downstream"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRef"
+            }
+          }
+        },
+        "required": [
+          "editorRevision",
+          "network",
+          "visible",
+          "selected",
+          "direction",
+          "revision",
+          "pins"
+        ]
+      },
+      "PinUpdate": {
+        "type": "object",
+        "properties": {
+          "layer": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "shape": {
+            "$ref": "#/components/schemas/Shape"
+          },
+          "indices": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "pinned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "layer",
+          "shape",
+          "indices",
+          "pinned"
+        ]
       }
     }
   }

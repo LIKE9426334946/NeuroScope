@@ -41,12 +41,19 @@ jobs:
           ROOT
           curl --retry 8 --retry-connrefused --retry-all-errors --retry-delay 1 -fsS http://127.0.0.1:16010/api/health
           test "$(ss -Hltn 'sport = :3010' | awk '{print $4}')" = '127.0.0.1:3010'
-      - name: Exercise the public Nginx port in Chromium
+      - name: Exercise admin and display through Nginx in Chromium
+        env:
+          NEUROSCOPE_SCREENSHOTS: ${{ runner.temp }}/neuroscope-preview
         run: |
           python3 -m venv "$RUNNER_TEMP/neuroscope-browser"
           source "$RUNNER_TEMP/neuroscope-browser/bin/activate"
           pip install playwright==1.55.0 Pillow
           python -m playwright install --with-deps chromium
           python tests/browser_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neuroscope-preview
+          path: ${{ runner.temp }}/neuroscope-preview/display.png
+          retention-days: 7
       - if: failure()
         run: sudo journalctl -u NeuroScope.service -u nginx --no-pager -n 100
