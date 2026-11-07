@@ -179,10 +179,15 @@ if __name__ == "__main__":
         browser = playwright.chromium.launch(args=["--disable-webgl"])
         try:
             page = browser.new_page(viewport={"width": 1440, "height": 900})
-            page.route("**/api/network", lambda route: route.fulfill(status=503, body="unavailable"))
-            page.route("**/api/presentation**", lambda route: route.fulfill(status=503, body="unavailable"))
+            # Block both fetch and native EventSource while letting Nginx serve the built UI.
+            network = page.context.new_cdp_session(page)
+            network.send("Network.enable")
+            network.send("Network.setBlockedURLs", {"urls": [URL + "/api/*"]})
+            failed = set()
+            page.on("requestfailed", lambda request: failed.add(request.url))
             page.goto(URL + "/admin")
             expect(page.locator(".header-status")).to_contain_text("内置计算图")
+            assert {URL + "/api/presentation", URL + "/api/network"} <= failed, failed
             expect(page.locator("canvas.projection-canvas")).to_be_visible()
             verify_default(page)
         finally:
