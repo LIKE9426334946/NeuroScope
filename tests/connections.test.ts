@@ -1,9 +1,28 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { neighbours } from '../src/connections/graph.ts'
+import { neighbours, neuronRelation } from '../src/connections/graph.ts'
 import { buildGraph } from '../src/network/graph.js'
 import { nodeTone } from '../src/neuron/appearance.ts'
 import { createExplorer } from '../src/stores/explorer.ts'
+
+test('Layer 02 #65 has exactly the 27 inputs in its receptive field on Layer 01', () => {
+  const graph = buildGraph({
+    input_shape: [3, 10, 10],
+    operations: [{ type: 'Conv2D', out_channels: 2, kernel_size: 3 }]
+  })
+  const store = createExplorer(graph)
+  store.getState().view(2)
+  store.getState().select(65)
+  const { selected, visible, direction } = store.getState()
+  assert.equal(visible, 2)
+  assert.equal(direction, 'self')
+  const expected = [0, 100, 200].flatMap((offset) =>
+    [1, 2, 3, 11, 12, 13, 21, 22, 23].map((i) => offset + i)
+  )
+  assert.deepEqual(neuronRelation(graph, selected, 'upstream'), { layer: 1, indices: expected })
+  assert.equal(neuronRelation(graph, { layer: 1, index: 65 }, 'upstream'), null)
+  assert.equal(neuronRelation(graph, null, 'upstream'), null)
+})
 
 test('direction changes from a middle tensor retain the same selected neuron and query the correct operation', () => {
   const store = createExplorer()

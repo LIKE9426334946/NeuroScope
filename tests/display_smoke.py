@@ -1,8 +1,12 @@
 """Two separate browser profiles exercise the actual live display API and UI."""
+import io
 import os
+import time
 from contextlib import contextmanager
+from itertools import groupby
 from pathlib import Path
 
+from PIL import Image
 from playwright.sync_api import expect
 
 
@@ -30,6 +34,26 @@ def temporary_presentation(request, url):
         yield
     finally:
         restore(original)
+
+
+def expect_row_colours(canvas, expected):
+    """Read the five visible spheres across the middle of a flat [1, 1, 5] WebGL tensor."""
+    expect(canvas).to_be_visible()
+    deadline = time.monotonic() + 5
+    while True:
+        image = Image.open(io.BytesIO(canvas.screenshot())).convert("RGB")
+        row = (image.getpixel((x, image.height // 2)) for x in range(image.width))
+        tones = []
+        for bright, run in groupby(row, key=lambda rgb: rgb[2] > 115):
+            if bright:
+                pixels = list(run)
+                if len(pixels) > 3:
+                    r, _, b = pixels[len(pixels) // 2]
+                    tones.append("blue" if b - r > 35 else "white")
+        if tones == expected:
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError((tones, expected))
 
 
 def verify_display(browser, url):
@@ -111,11 +135,11 @@ def verify_display(browser, url):
         tone(2, 0, "related")
         tone(2, 4, "normal")
         select(4)
-        click_admin("上一层")
+        expect(admin.locator(".scene-hud")).to_contain_text("Layer 02")
         tone(2, 4, "selected")
         tone(1, 12, "related")
         tone(1, 0, "normal")
-        expect(home.locator(".display-state")).to_contain_text("27")
+        expect(home.locator(".display-state")).to_contain_text("上游 · 27")
         home.reload()
         tone(1, 12, "related")
         persisted = pin(1, 12).bounding_box()
@@ -124,6 +148,10 @@ def verify_display(browser, url):
         assert abs(pin(1, 12).evaluate("el => el.offsetTop") - scaled_top) < 2
         admin.reload()
         expect(admin.locator(".anchor-card")).to_contain_text("Neuron #4")
+        expect(admin.locator(".scene-hud")).to_contain_text("Layer 02")
+        click_admin("上一层")
+        expect(admin.locator(".scene-hud")).to_contain_text("Layer 01")
+        tone(1, 12, "related")
         if os.getenv("NEUROSCOPE_SCREENSHOTS"):
             dest = Path(os.environ["NEUROSCOPE_SCREENSHOTS"])
             dest.mkdir(parents=True, exist_ok=True)
@@ -158,6 +186,28 @@ def verify_display(browser, url):
         home.get_by_role("button",name="选择神经元").click()
         home.get_by_label("移除 Layer 01 #2",exact=True).click()
         expect(pin(1, 2)).to_have_count(0)
+        home.get_by_role("checkbox", name="Layer 01", exact=True).uncheck()
+        home.get_by_label("关闭选择面板").click()
+        source = home.locator('[data-item="layer-1"]')
+        expect(source).to_have_count(0)
+
+        click_admin("添加 Conv2D")
+        admin.locator("#conv-out_channels").fill("1")
+        admin.locator("#conv-kernel_size").fill("1,3")
+        click_admin("生成输出层")
+        click_admin("编号")
+        label = admin.locator('.stage .sphere-label[data-index="1"]')
+        expect(label).to_be_visible()
+        box = label.bounding_box()
+        admin.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        expect(admin.locator(".scene-hud")).to_contain_text("Layer 02")
+        expect(home.locator('[data-item="layer-2"] [role="group"]')).to_have_attribute("aria-label", "选中神经元 #1")
+        expect(source.get_by_role("group")).to_have_attribute("aria-label", "关联神经元 3 个")
+        expect_row_colours(source.locator("canvas"), ["white", "blue", "blue", "blue", "white"])
+        select(0)
+        expect_row_colours(source.locator("canvas"), ["blue", "blue", "blue", "white", "white"])
+        click_admin("重置选择")
+        expect(source).to_have_count(0)
         assert not errors, errors
     finally:
         viewer_context.close()

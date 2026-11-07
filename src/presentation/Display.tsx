@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from 'zustand'
 import { Icon } from '../components/Icon'
-import { neighbours } from '../connections/graph'
+import { neuronRelation } from '../connections/graph'
 import { layerName } from '../network/layers'
 import { nodeTone, palette } from '../neuron/appearance'
 import { ProjectionScene } from '../scenes/ProjectionScene'
@@ -100,13 +100,16 @@ export function Display({ session }: { session: Presentation }) {
       document.removeEventListener('keydown', key)
     }
   }, [picker])
+  // While the editor stays on the selected neuron, the board can show its receptive field alongside it.
+  const relationDirection = direction === 'self' ? 'upstream' : direction
+  const relation = useMemo(() => {
+    const match = neuronRelation(graph, selected, relationDirection)
+    return match && { layer: match.layer, indices: new Set(match.indices) }
+  }, [graph, selected, relationDirection])
   const choice = prefs.layers ?? [...new Set([...graph.layers.slice(0, 2).map((l) => l.id), visible])]
   const required = new Set(selected ? [selected.layer, visible] : [])
+  if (relation) required.add(relation.layer)
   const shown = graph.layers.filter((l) => choice.includes(l.id) || required.has(l.id))
-  const related = useMemo(
-    () => new Set(direction === 'self' ? [] : neighbours(graph, selected, direction)),
-    [graph, selected, direction]
-  )
   const validPins = pins.filter((n) => graph.layers.some((l) => l.id === n.layer && n.index < l.count))
   const nodeIds = validPins.map((n) => 'node-' + n.layer + '-' + n.index)
   const slots = boardSlots(
@@ -143,9 +146,9 @@ export function Display({ session }: { session: Presentation }) {
                 <span>
                   {layerName(selected.layer)} #{selected.index}
                 </span>
-                {direction !== 'self' && (
+                {relation && (
                   <span className="relation-caption">
-                    {direction === 'upstream' ? '上游' : '下游'} · {related.size}
+                    {relationDirection === 'upstream' ? '上游' : '下游'} · {relation.indices.size}
                   </span>
                 )}
               </>
@@ -212,7 +215,7 @@ export function Display({ session }: { session: Presentation }) {
               <LayerView
                 layer={layer}
                 selected={selected?.layer === layer.id ? selected.index : null}
-                related={visible === layer.id ? related : none}
+                related={relation?.layer === layer.id ? relation.indices : none}
                 software={i >= 4}
                 onPin={(index) => void session.setPins(layer.id, [index], true)}
               />
@@ -225,7 +228,7 @@ export function Display({ session }: { session: Presentation }) {
           const tone = nodeTone(
             n.index,
             selected?.layer === n.layer ? selected.index : null,
-            visible === n.layer ? related : none
+            relation?.layer === n.layer ? relation.indices : none
           )
           return (
             <BoardItem
