@@ -39,7 +39,7 @@ def verify_display(browser, url):
     home = viewer_context.new_page()
     errors = []
     for page in (admin, home):
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("pageerror", lambda error, page=page: errors.append(f"{page.url}\n{error.stack or error}"))
     def select(index):
         admin.get_by_label("按编号选择", exact=True).fill(str(index))
         admin.get_by_role("button", name="选择此编号").click()

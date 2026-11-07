@@ -140,7 +140,7 @@ def verify_picking_and_colours(page):
 
 def verify_webgl(page):
     errors = []
-    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("pageerror", lambda error: errors.append(error.stack or str(error)))
     assert page.request.get(f"{URL}/api/health").json() == {"status": "ok", "service": "NeuroScope"}
     network = page.request.get(f"{URL}/api/network").json()
     assert network["input_shape"] == [3, 5, 5]
